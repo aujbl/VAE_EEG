@@ -5,43 +5,46 @@ from typing import List
 from torchsummary import summary
 
 
-class VAE(nn.Module):
+class VAE2d(nn.Module):
 
     def __init__(self, in_channels: int, latent_dim: int, hidden_dims: List=None, **kargs):
-        super(VAE, self).__init__()
+        super(VAE2d, self).__init__()
 
         self.in_channels = in_channels
         self.latent_dim = latent_dim
         modules = []
         if hidden_dims is None:
-            hidden_dims = [8, 16, 32]
+            hidden_dims = [4, 8, 16]
 
         # build encoder
         for h_dim in hidden_dims:
             modules.append(
                 nn.Sequential(
-                    # should be change
+                    # consider kernel_size == (1, 7) or sth else
                     nn.Conv2d(in_channels, out_channels=h_dim,
-                              kernel_size=(1, 7), stride=(3, 1), padding=1),
+                              kernel_size=3, stride=2, padding=1),
                     nn.BatchNorm2d(h_dim),
                     nn.LeakyReLU(),
                 )
             )
             in_channels = h_dim
 
-        self.encoder = nn.Sequential(*modules)
-        self.fc_mu = nn.Linear(hidden_dims[-1] * 4, latent_dim)
-        self.fc_var = nn.Linear(hidden_dims[-1] * 4, latent_dim)
+        self.encoder = nn.Sequential(*modules,
+                                     nn.Flatten())
+        # flatten size input
+        fla_size = hidden_dims[-1] * 4
+        self.fc_mu = nn.Linear(fla_size, latent_dim)
+        self.fc_var = nn.Linear(fla_size, latent_dim)
 
         # build decoder
         modules = []
-        in_channels = latent_dim
+        self.decoder_input = nn.Linear(latent_dim, fla_size)
         hidden_dims.reverse()
 
-        for h_dim in hidden_dims:
+        for h_dim in hidden_dims[1:]:
             modules.append(
                 nn.Sequential(
-                    nn.Conv2d(latent_dim, out_channels=h_dim * 4, kernel_size=3, ),
+                    nn.ConvTranspose2d(in_channels, h_dim, kernel_size=3, stride=2, padding=1),
                     nn.BatchNorm1d(h_dim),
                     nn.LeakyReLU(),
                 )
@@ -49,11 +52,23 @@ class VAE(nn.Module):
             in_channels = h_dim
 
         self.decoder = nn.Sequential(*modules)
-
         self.final_layer = nn.Sequential(
-            nn.Linear(hidden_dims[-1], self.in_channels),
-            nn.LeakyReLU(),
+            nn.ConvTranspose2d(in_channels, self.in_channels, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(self.in_channels),
+            nn.Tanh(),
         )
+        # self.final_layer = nn.Sequential(
+        #                     nn.ConvTranspose2d(hidden_dims[-1],
+        #                                        hidden_dims[-1],
+        #                                        kernel_size=3,
+        #                                        stride=2,
+        #                                        padding=1,
+        #                                        output_padding=1),
+        #                     nn.BatchNorm2d(hidden_dims[-1]),
+        #                     nn.LeakyReLU(),
+        #                     nn.Conv2d(hidden_dims[-1], out_channels= 3,
+        #                               kernel_size= 3, padding= 1),
+        #                     nn.Tanh())
 
     def encode(self, input):
         result = self.encoder(input)
