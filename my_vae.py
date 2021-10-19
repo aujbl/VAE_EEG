@@ -15,37 +15,37 @@ class MyVAE(nn.Module):
         # Build Encoder
         self.encoder = nn.Sequential(
             nn.Conv2d(in_channels=channels[0], out_channels=channels[1],
-                      kernel_size=3, stride=1, padding='same'),
+                      kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(channels[1]),
             nn.LeakyReLU(),
             nn.MaxPool2d(kernel_size=2),
 
             nn.Conv2d(in_channels=channels[1], out_channels=channels[2],
-                      kernel_size=3, stride=1, padding='same'),
+                      kernel_size=3, stride=1, padding=(0, 1)),
             nn.BatchNorm2d(channels[2]),
             nn.LeakyReLU(),
             nn.MaxPool2d(kernel_size=2),
 
             nn.Conv2d(in_channels=channels[2], out_channels=channels[3],
-                      kernel_size=3, stride=1, padding='same'),
+                      kernel_size=3, stride=1, padding=(1, 0)),
             nn.BatchNorm2d(channels[3]),
             nn.LeakyReLU(),
             nn.MaxPool2d(kernel_size=2),
 
             nn.Conv2d(in_channels=channels[3], out_channels=channels[4],
-                      kernel_size=3, stride=1, padding='same'),
+                      kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(channels[4]),
             nn.LeakyReLU(),
             nn.MaxPool2d(kernel_size=2),
 
             nn.Conv2d(in_channels=channels[4], out_channels=channels[5],
-                      kernel_size=3, stride=1, padding='same'),
+                      kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(channels[5]),
             nn.LeakyReLU(),
             nn.MaxPool2d(kernel_size=2),
 
             nn.Conv2d(in_channels=channels[5], out_channels=channels[6],
-                      kernel_size=3, stride=1, padding='same'),
+                      kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(channels[6]),
             nn.LeakyReLU(),
             # nn.MaxPool2d(kernel_size=2),
@@ -64,61 +64,65 @@ class MyVAE(nn.Module):
 
         channels.reverse()
         self.decoder = nn.Sequential(
+            # nn.MaxUnpool2d(),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
             nn.ConvTranspose2d(in_channels=channels[0], out_channels=channels[1],
-                               kernel_size=3, stride=1, padding='same'),
+                               kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(channels[1]),
             nn.LeakyReLU(),
-            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
 
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
             nn.ConvTranspose2d(in_channels=channels[1], out_channels=channels[2],
-                               kernel_size=3, stride=1, padding='same'),
+                               kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(channels[2]),
             nn.LeakyReLU(),
-            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
 
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
             nn.ConvTranspose2d(in_channels=channels[2], out_channels=channels[3],
-                               kernel_size=3, stride=1, padding='same'),
+                               kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(channels[3]),
             nn.LeakyReLU(),
-            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
 
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
             nn.ConvTranspose2d(in_channels=channels[3], out_channels=channels[4],
-                               kernel_size=3, stride=1, padding='same'),
+                               kernel_size=3, stride=1, padding=(0, 0)),
             nn.BatchNorm2d(channels[4]),
             nn.LeakyReLU(),
-            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
 
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
             nn.ConvTranspose2d(in_channels=channels[4], out_channels=channels[5],
-                               kernel_size=3, stride=1, padding='same'),
+                               kernel_size=3, stride=1, padding=(1, 0)),
             nn.BatchNorm2d(channels[5]),
             nn.LeakyReLU(),
-            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
 
-            nn.ConvTranspose2d(in_channels=channels[5], out_channels=channels[6],
-                               kernel_size=3, stride=1, padding='same'),
-            nn.BatchNorm2d(channels[6]),
-            nn.LeakyReLU(),
             # nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
+            # nn.ConvTranspose2d(in_channels=channels[5], out_channels=channels[6],
+            #                    kernel_size=3, stride=1, padding=(1, 0)),
+            # nn.BatchNorm2d(channels[6]),
+            # nn.LeakyReLU(),
+
 
         )
 
         # self.decoder = nn.Sequential(*modules)
         self.final_layer = nn.Sequential(
-                            nn.ConvTranspose2d(self.channels[-1],
-                                               out_channels=1,  # hidden_dims[-1],
+                            nn.ConvTranspose2d(in_channels=self.channels[1],
+                                               out_channels=self.channels[1],  # hidden_dims[-1],
                                                kernel_size=3,
                                                stride=1,
-                                               # padding='same',
+                                               padding=(1, 0),
                                                # output_padding=1
                                                ),
-                            nn.BatchNorm2d(1),
+                            nn.BatchNorm2d(self.channels[1]),
                             nn.LeakyReLU(),
-                            # nn.Conv2d(hidden_dims[-1],
-                            #           out_channels=1,
-                            #           kernel_size=3,
-                            #           # padding='same'
-                            #           ),
-                            # nn.Tanh()
+
+                            nn.Conv2d(in_channels=self.channels[1],
+                                      out_channels=1,
+                                      kernel_size=3,
+                                      stride=1,
+                                      padding=1
+                                      ),
+                            nn.Tanh()
                             )
 
     def encode(self, input):
@@ -221,4 +225,4 @@ class MyVAE(nn.Module):
 
 if __name__ == '__main__':
     my_vae = MyVAE(in_channels=1, latent_dim=32, channels=[1, 32, 32, 64, 64, 128, 128])
-    # summary(MyVAE)
+    summary(my_vae, (1, 68, 1000))
