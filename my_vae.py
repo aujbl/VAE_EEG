@@ -131,6 +131,8 @@ class MyVAE(nn.Module):
                             nn.Tanh()
                             )
 
+        self.loss_fn = nn.CrossEntropyLoss()
+
     def encode(self, input):
         """
         Encodes the input by passing through the encoder network
@@ -183,7 +185,7 @@ class MyVAE(nn.Module):
         return [input_recons, input, res, mu, log_var]
 
     # @staticmethod
-    def loss_function(self, label=None, args):
+    def loss_function(self, *args, label=None):
         """
         Computes the VAE loss function.
         KL(N(\mu, \sigma), N(0, 1)) = \log \frac{1}{\sigma} + \frac{\sigma^2 + \mu^2}{2} - \frac{1}{2}
@@ -191,19 +193,15 @@ class MyVAE(nn.Module):
         # :param kwargs:
         :return:
         """
-        input_recons = args[0]
-        input = args[1]
-        res = args[2]
-        mu = args[3]
-        log_var = args[4]
+        input_recons, input, res, mu, log_var = args
         recons_w, cross_w, kld_w = [0.3, 0.4, 0.3]
         # kld_weight = kwargs['M_N']  # Account for the mini batch samples from the dataset
         recons_loss = F.mse_loss(input_recons, input)
         '''
-        input shape: (3, 5)
-        target shape: (3,)
+        label: LongTensor
+        loss_function(*args, label=)
         '''
-        cross_loss = nn.CrossEntropyLoss(res, label)
+        cross_loss = self.loss_fn(res, torch.LongTensor(label))
         kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim=1), dim=0)
 
         loss = recons_w * recons_loss + cross_w * cross_loss + kld_w * kld_loss
