@@ -26,10 +26,16 @@ TRAIN_VAL_EPOCH = 0
 EXPERIMENT = "vae_baseline"
 TRAIN_EVAL_IN_TRAINSET = False
 TRAIN_LOG_DIR = './logs'
+GPU_IDS = [0]
+RANDOM_SEED = 520
+DATASET_DATA_ROOT = '../split_datasets'
+TRAIN_BATCH_SIZE = 64
+VAL_BATCH_SIZE = 64
+TRAIN_RESUME = False
+TRAIN_RESUME_PATH = ''
 
 
-
-def train(trainer, dataloader, val_dataloader, file_writer, epochs):
+def train(trainer, dataloader, val_dataloader, file_writer):
     best_f1_micro = 0
     best_epoch = 0
     num_batch_per_epoch = len(dataloader)
@@ -124,6 +130,39 @@ def train(trainer, dataloader, val_dataloader, file_writer, epochs):
         f' best epoch: {best_epoch}, '
         f'best f1 micro: {best_f1_micro}'
     )
+
+def main():
+    # if args.cfg is not None:
+    #     cfg.merge_from_file(args.cfg)
+
+    os.environ["CUDA_VISIBLE_DEVICES"] = ",".join([str(gpu) for gpu in GPU_IDS])
+
+    set_seed(RANDOM_SEED)
+
+    log_dir = os.path.join(TRAIN_LOG_DIR, EXPERIMENT, 'logs')
+    mkdir(log_dir)
+    checkpoint_dir = os.path.join(TRAIN_LOG_DIR, EXPERIMENT, 'checkpoints')
+    mkdir(checkpoint_dir)
+
+    init_log(log_dir=log_dir)
+    logging.info(json.dumps(cfg, indent=4))
+    file_writer = SummaryWriter(log_dir)
+
+    train_dataset = TrainDataset(data_root=DATASET_DATA_ROOT, data_type='train')
+
+    train_dataloader = DataLoader(train_dataset, batch_size=TRAIN_BATCH_SIZE,
+                                  shuffle=True, num_workers=1)
+
+    val_dataset = TrainDataset(data_root=DATASET_DATA_ROOT, data_type='val')
+    val_dataloader = DataLoader(val_dataset, batch_size=VAL_BATCH_SIZE, shuffle=False, num_workers=1)
+
+    trainer = VAETrainer()
+
+    if TRAIN_RESUME:
+        TRAIN_START_EPOCH = trainer.resume_model(TRAIN_RESUME_PATH)
+    train(trainer, train_dataloader, val_dataloader, file_writer)
+
+
 
 if __name__ == '__main__':
     main()
