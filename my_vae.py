@@ -196,7 +196,7 @@ class MyVAE(nn.Module):
         :return:
         """
         input_recons, input, res, mu, log_var = args
-        recons_w, cross_w, kld_w = [5, 1, 5]
+        recons_w, cross_w, kld_w = [2.5, 1, 5]
         # kld_weight = kwargs['M_N']  # Account for the mini batch samples from the dataset
         recons_loss = F.mse_loss(input_recons, input) * recons_w
         # labels = torch.LongTensor(label).to(device)
@@ -204,7 +204,7 @@ class MyVAE(nn.Module):
         kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim=1), dim=0)
         kld_loss *= kld_w
 
-        loss = recons_loss + cross_loss + kld_loss
+        loss = torch.mean(torch.stack([recons_loss, cross_loss, kld_loss]), 0)
         return {'total_loss': loss, 'Reconstruction_Loss': recons_loss, 'KLD': kld_loss, 'cross_loss': cross_loss}
         # return loss
 

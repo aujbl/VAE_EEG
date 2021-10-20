@@ -187,10 +187,10 @@ def main():
     train_dataset = TrainDataset(data_root=DATASET_DATA_ROOT, data_type='train')
 
     train_dataloader = DataLoader(train_dataset, batch_size=TRAIN_BATCH_SIZE,
-                                  shuffle=True, num_workers=1)
+                                  shuffle=True, num_workers=4)
 
     val_dataset = TrainDataset(data_root=DATASET_DATA_ROOT, data_type='val')
-    val_dataloader = DataLoader(val_dataset, batch_size=VAL_BATCH_SIZE, shuffle=False, num_workers=1)
+    val_dataloader = DataLoader(val_dataset, batch_size=VAL_BATCH_SIZE, shuffle=False, num_workers=4)
 
     trainer = VAETrainer()
 
