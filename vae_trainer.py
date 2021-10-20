@@ -2,6 +2,7 @@ from my_vae import MyVAE
 import os
 import torch
 from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 lr = 0.001
 
@@ -10,6 +11,7 @@ class VAETrainer(object):
     def __init__(self):
         super().__init__()
         self.model = MyVAE(in_channels=1, latent_dim=128, channels=[1, 32, 32, 64, 64, 128, 128])
+        self.model.to(device)
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
         self.lr_scheduler = StepLR(self.optimizer, step_size=10, gamma=0.8)
@@ -19,13 +21,14 @@ class VAETrainer(object):
     def train_step(self, x, labels, sample_weight=None):
         args = self.model(x)
         self.optimizer.zero_grad()
-        loss = self.model.loss_function(*args, labels)
+        loss_dict = self.model.loss_function(*args, label=labels)
+        loss = loss_dict['total_loss']
         if sample_weight is not None:
             loss *= sample_weight
         loss = loss.mean()
         loss.backward()
         self.optimizer.step()
-        self.loss_dict['total_loss'] = loss
+        self.loss_dict = loss_dict
 
     def update_learning_rate(self):
         self.lr_scheduler.step()

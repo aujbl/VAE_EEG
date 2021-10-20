@@ -2,6 +2,7 @@ import torch
 from torch import nn
 from torchsummary import summary
 from torch.nn import functional as F
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 
 class MyVAE(nn.Module):
@@ -21,13 +22,13 @@ class MyVAE(nn.Module):
             nn.MaxPool2d(kernel_size=2),
 
             nn.Conv2d(in_channels=self.channels[1], out_channels=self.channels[2],
-                      kernel_size=3, stride=1, padding=(0, 1)),
+                      kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(self.channels[2]),
             nn.LeakyReLU(),
             nn.MaxPool2d(kernel_size=2),
 
             nn.Conv2d(in_channels=self.channels[2], out_channels=self.channels[3],
-                      kernel_size=3, stride=1, padding=(1, 0)),
+                      kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(self.channels[3]),
             nn.LeakyReLU(),
             nn.MaxPool2d(kernel_size=2),
@@ -53,7 +54,7 @@ class MyVAE(nn.Module):
             nn.Flatten()
         )
         # self.flatten_size = self.encoder(torch.randn(1, 1, 68, 1000)).shape
-        self.flatten_size = 7936
+        self.flatten_size = 1792
         # self.interLinear Layer
         self.fc_mu = nn.Linear(self.flatten_size, self.latent_dim)
         self.fc_var = nn.Linear(self.flatten_size, self.latent_dim)
@@ -73,19 +74,19 @@ class MyVAE(nn.Module):
 
             nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
             nn.ConvTranspose2d(in_channels=self.channels[1], out_channels=self.channels[2],
-                               kernel_size=3, stride=1, padding=1),
+                               kernel_size=3, stride=1, padding=(1, 0)),
             nn.BatchNorm2d(self.channels[2]),
             nn.LeakyReLU(),
 
             nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
             nn.ConvTranspose2d(in_channels=self.channels[2], out_channels=self.channels[3],
-                               kernel_size=3, stride=1, padding=1),
+                               kernel_size=3, stride=1, padding=(1, 0)),
             nn.BatchNorm2d(self.channels[3]),
             nn.LeakyReLU(),
 
             nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
             nn.ConvTranspose2d(in_channels=self.channels[3], out_channels=self.channels[4],
-                               kernel_size=3, stride=1, padding=(0, 0)),
+                               kernel_size=3, stride=1, padding=(0, 1)),
             nn.BatchNorm2d(self.channels[4]),
             nn.LeakyReLU(),
 
@@ -107,7 +108,7 @@ class MyVAE(nn.Module):
             nn.Linear(in_features=self.cla_features[0], out_features=self.cla_features[1]),
             nn.ReLU(),
             nn.Linear(in_features=self.cla_features[1], out_features=self.cla_features[2]),
-            nn.Softmax()
+            nn.Softmax(dim=1)
         )
 
         # self.decoder = nn.Sequential(*modules)
@@ -116,7 +117,7 @@ class MyVAE(nn.Module):
                                                out_channels=self.channels[-2],  # hidden_dims[-1],
                                                kernel_size=3,
                                                stride=1,
-                                               padding=(1, 0),
+                                               padding=1,
                                                # output_padding=1
                                                ),
                             nn.BatchNorm2d(self.channels[-2]),
@@ -158,7 +159,7 @@ class MyVAE(nn.Module):
         :return: (Tensor) [B x C x H x W]
         """
         result = self.decoder_input(z)
-        result = result.view(-1, self.channels[0], 2, 31)
+        result = result.view(-1, self.channels[0], 2, 7)
         result = self.decoder(result)
         result = self.final_layer(result)
         return result
@@ -178,6 +179,7 @@ class MyVAE(nn.Module):
         return eps * std + mu
 
     def forward(self, input, **kwargs):
+        input = torch.reshape(input, shape=(-1, 1, 68, 250))
         mu, log_var = self.encode(input)
         z = self.reparameterize(mu, log_var)
         res = self.classifier(z)
@@ -194,19 +196,17 @@ class MyVAE(nn.Module):
         :return:
         """
         input_recons, input, res, mu, log_var = args
-        recons_w, cross_w, kld_w = [0.3, 0.4, 0.3]
+        recons_w, cross_w, kld_w = [5, 1, 5]
         # kld_weight = kwargs['M_N']  # Account for the mini batch samples from the dataset
-        recons_loss = F.mse_loss(input_recons, input)
-        '''
-        label: LongTensor
-        loss_function(*args, label=)
-        '''
-        cross_loss = self.loss_fn(res, torch.LongTensor(label))
+        recons_loss = F.mse_loss(input_recons, input) * recons_w
+        # labels = torch.LongTensor(label).to(device)
+        cross_loss = self.loss_fn(res, label) * cross_w
         kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim=1), dim=0)
+        kld_loss *= kld_w
 
-        loss = recons_w * recons_loss + cross_w * cross_loss + kld_w * kld_loss
-        # return {'loss': loss, 'Reconstruction_Loss': recons_loss, 'KLD': -kld_loss}
-        return loss
+        loss = recons_loss + cross_loss + kld_loss
+        return {'total_loss': loss, 'Reconstruction_Loss': recons_loss, 'KLD': kld_loss, 'cross_loss': cross_loss}
+        # return loss
 
     def sample(self, num_samples, current_device, **kwargs):
         """

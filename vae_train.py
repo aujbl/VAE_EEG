@@ -1,36 +1,33 @@
 import os
 import sys
-import json
 import time
-import random
+import torch
 import logging
-import argparse
 import datetime
-
+from vae_trainer import VAETrainer
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader
-# from datasets.dataset import TrainDataset
-from dataset import TrainDataset
 
-from vae_trainer import VAETrainer
-from ./utils.log_helper import init_log, log_grads, track
-from ./utils.misc import AverageMeter, compute_eta_time, mkdir, set_seed
-from ./eval import evaluate
-from ./transferprob import transferprob
+sys.path.append('..')
+# from eval import evaluate
+from datasets.dataset import TrainDataset
+from utils.eval import accuracy, f1_score
+from utils.log_helper import init_log, log_grads, track
+from utils.misc import AverageMeter, compute_eta_time, mkdir, set_seed
 
 TRAIN_START_EPOCH = 0
-TRAIN_END_EPOCH = 50
+TRAIN_END_EPOCH = 10
 TRAIN_LOG_INTERVAL = 50
 TRAIN_PRINT_SPEED_INTERVAL = 50
 TRAIN_VAL_EPOCH = 0
 EXPERIMENT = "vae_baseline"
-TRAIN_EVAL_IN_TRAINSET = False
+TRAIN_EVAL_IN_TRAINSET = True
 TRAIN_LOG_DIR = './logs'
 GPU_IDS = [0]
 RANDOM_SEED = 520
-DATASET_DATA_ROOT = '../split_datasets'
-TRAIN_BATCH_SIZE = 64
-VAL_BATCH_SIZE = 64
+DATASET_DATA_ROOT = '../../nor_split_datasets'
+TRAIN_BATCH_SIZE = 128
+VAL_BATCH_SIZE = 128
 TRAIN_RESUME = False
 TRAIN_RESUME_PATH = ''
 
@@ -77,7 +74,8 @@ def train(trainer, dataloader, val_dataloader, file_writer):
 
         logging.info(
             f'Experiment: {EXPERIMENT}, epoch: {epoch},'
-            f' avg train loss: {train_loss.avg:.6f}, lr: {trainer.get_last_lr()}')
+            f' avg train loss: {train_loss.avg:.6f}, lr: {trainer.get_last_lr()}'
+        )
 
         trainer.update_learning_rate()
         train_time = time.time()-epoch_begin
@@ -131,6 +129,44 @@ def train(trainer, dataloader, val_dataloader, file_writer):
         f'best f1 micro: {best_f1_micro}'
     )
 
+
+@torch.no_grad()
+def evaluate(trainer, val_dataloader):
+    batch_time = AverageMeter()
+    top1 = AverageMeter()
+    f1_macro = AverageMeter()
+    f1_micro = AverageMeter()
+
+    # switch to evaluate mode
+    trainer.model.eval()
+
+    end = time.time()
+    for i, data in enumerate(track(val_dataloader)):
+        seqs = data['seq'].cuda()
+        labels = data['label'].cuda()
+
+        args = trainer.model(seqs)
+        preds = args[2]
+
+        # measure accuracy and record loss
+        prec1 = accuracy(preds, labels, topk=(1, ))
+        prec1 = prec1[0]
+        top1.update(prec1.item(), seqs.size(0))
+        f1_macro_ = f1_score(preds, labels, 'macro')
+        f1_micro_ = f1_score(preds, labels, 'micro')
+        f1_macro.update(f1_macro_, seqs.size(0))
+        f1_micro.update(f1_micro_, seqs.size(0))
+
+        # measure elapsed time
+        batch_time.update(time.time() - end)
+        end = time.time()
+    return {
+        'top1': top1.avg,
+        'f1_macro': f1_macro.avg,
+        'f1_micro': f1_micro.avg
+    }
+
+
 def main():
     # if args.cfg is not None:
     #     cfg.merge_from_file(args.cfg)
@@ -145,7 +181,7 @@ def main():
     mkdir(checkpoint_dir)
 
     init_log(log_dir=log_dir)
-    logging.info(json.dumps(cfg, indent=4))
+    # logging.info(json.dumps(cfg, indent=4))
     file_writer = SummaryWriter(log_dir)
 
     train_dataset = TrainDataset(data_root=DATASET_DATA_ROOT, data_type='train')
