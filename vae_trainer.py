@@ -1,14 +1,9 @@
 from my_vae import MyVAE
 import os
 import torch
-import torch.nn as nn
-from configs.config import cfg
-import torch.nn.functional as F
 from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR
 
 lr = 0.001
-batch_size = 64
-
 
 
 class VAETrainer(object):
