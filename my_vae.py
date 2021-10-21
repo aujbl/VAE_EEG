@@ -103,11 +103,13 @@ class MyVAE(nn.Module):
             # nn.LeakyReLU(),
         )
 
-        self.cla_features = [self.latent_dim, 128, 4]
+        self.cla_features = [self.latent_dim, 256, 128, 4]
         self.classifier_layer = nn.Sequential(
             nn.Linear(in_features=self.cla_features[0], out_features=self.cla_features[1]),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Linear(in_features=self.cla_features[1], out_features=self.cla_features[2]),
+            nn.LeakyReLU(),
+            nn.Linear(in_features=self.cla_features[2], out_features=self.cla_features[3]),
             nn.Softmax(dim=1)
         )
 
@@ -196,7 +198,8 @@ class MyVAE(nn.Module):
         :return:
         """
         input_recons, input, res, mu, log_var = args
-        recons_w, cross_w, kld_w = [2.5, 1, 5]
+        recons_w, cross_w, kld_w = [1, 1, 1]
+        # total_w = recons_w + cross_w + kld_w
         # kld_weight = kwargs['M_N']  # Account for the mini batch samples from the dataset
         recons_loss = F.mse_loss(input_recons, input) * recons_w
         # labels = torch.LongTensor(label).to(device)
