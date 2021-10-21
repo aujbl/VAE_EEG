@@ -103,15 +103,15 @@ class MyVAE(nn.Module):
             # nn.LeakyReLU(),
         )
 
-        self.cla_features = [self.latent_dim, 256, 128, 4]
-        self.classifier_layer = nn.Sequential(
-            nn.Linear(in_features=self.cla_features[0], out_features=self.cla_features[1]),
-            nn.LeakyReLU(),
-            nn.Linear(in_features=self.cla_features[1], out_features=self.cla_features[2]),
-            nn.LeakyReLU(),
-            nn.Linear(in_features=self.cla_features[2], out_features=self.cla_features[3]),
-            nn.Softmax(dim=1)
-        )
+        # self.cla_features = [self.latent_dim, 256, 128, 4]
+        # self.classifier_layer = nn.Sequential(
+        #     nn.Linear(in_features=self.cla_features[0], out_features=self.cla_features[1]),
+        #     nn.LeakyReLU(),
+        #     nn.Linear(in_features=self.cla_features[1], out_features=self.cla_features[2]),
+        #     nn.LeakyReLU(),
+        #     nn.Linear(in_features=self.cla_features[2], out_features=self.cla_features[3]),
+        #     nn.Softmax(dim=1)
+        # )
 
         # self.decoder = nn.Sequential(*modules)
         self.final_layer = nn.Sequential(
@@ -166,8 +166,8 @@ class MyVAE(nn.Module):
         result = self.final_layer(result)
         return result
 
-    def classifier(self, z):
-        return self.classifier_layer(z)
+    # def classifier(self, z):
+    #     return self.classifier_layer(z)
 
     def reparameterize(self, mu, log_var):
         """
@@ -184,9 +184,9 @@ class MyVAE(nn.Module):
         input = torch.reshape(input, shape=(-1, 1, 68, 250))
         mu, log_var = self.encode(input)
         z = self.reparameterize(mu, log_var)
-        res = self.classifier(z)
+        # res = self.classifier(z)
         input_recons = self.decode(z)
-        return [input_recons, input, res, mu, log_var]
+        return [input_recons, input, mu, log_var]
 
     # @staticmethod
     def loss_function(self, *args, label=None):
@@ -197,18 +197,20 @@ class MyVAE(nn.Module):
         # :param kwargs:
         :return:
         """
-        input_recons, input, res, mu, log_var = args
+        input_recons, input, mu, log_var = args
         recons_w, cross_w, kld_w = [1, 1, 1]
         # total_w = recons_w + cross_w + kld_w
         # kld_weight = kwargs['M_N']  # Account for the mini batch samples from the dataset
         recons_loss = F.mse_loss(input_recons, input) * recons_w
         # labels = torch.LongTensor(label).to(device)
-        cross_loss = self.loss_fn(res, label) * cross_w
+        # cross_loss = self.loss_fn(res, label) * cross_w
         kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim=1), dim=0)
         kld_loss *= kld_w
 
-        loss = torch.mean(torch.stack([recons_loss, cross_loss, kld_loss]), 0)
-        return {'total_loss': loss, 'Reconstruction_Loss': recons_loss, 'KLD': kld_loss, 'cross_loss': cross_loss}
+        loss = torch.mean(torch.stack([recons_loss, kld_loss]), 0)
+        # loss = recons_loss * cross_loss * kld_loss
+        # return {'total_loss': loss, 'Reconstruction_Loss': recons_loss, 'KLD': kld_loss, 'cross_loss': cross_loss}
+        return {'total_loss': loss, 'Reconstruction_Loss': recons_loss, 'KLD': kld_loss}
         # return loss
 
     def sample(self, num_samples, current_device, **kwargs):

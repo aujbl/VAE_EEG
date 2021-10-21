@@ -4,7 +4,7 @@ import torch
 from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-lr = 0.01
+lr = 0.001
 latent_dim = 512
 
 
