@@ -16,7 +16,7 @@ from utils.log_helper import init_log, log_grads, track
 from utils.misc import AverageMeter, compute_eta_time, mkdir, set_seed
 
 TRAIN_START_EPOCH = 0
-TRAIN_END_EPOCH = 10
+TRAIN_END_EPOCH = 50
 TRAIN_LOG_INTERVAL = 50
 TRAIN_PRINT_SPEED_INTERVAL = 50
 TRAIN_VAL_EPOCH = 0
