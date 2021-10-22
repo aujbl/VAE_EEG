@@ -209,7 +209,7 @@ class MyVAE(nn.Module):
         # labels = torch.LongTensor(label).to(device)
         cross_loss = self.loss_fn(res, label) * cross_w
         kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim=1), dim=0)
-        kld_loss *= kld_w
+        kld_loss *= (1 / 890)
 
         loss = recons_loss + kld_loss
         loss = torch.mean(torch.stack([recons_loss, cross_loss, kld_loss]), 0)

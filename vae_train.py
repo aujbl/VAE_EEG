@@ -4,6 +4,7 @@ import time
 import torch
 import logging
 import datetime
+import numpy as np
 from vae_trainer import VAETrainer
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader
@@ -16,7 +17,7 @@ from utils.log_helper import init_log, log_grads, track
 from utils.misc import AverageMeter, compute_eta_time, mkdir, set_seed
 
 TRAIN_START_EPOCH = 0
-TRAIN_END_EPOCH = 50
+TRAIN_END_EPOCH = 20
 TRAIN_LOG_INTERVAL = 50
 TRAIN_PRINT_SPEED_INTERVAL = 50
 TRAIN_VAL_EPOCH = 0
@@ -167,7 +168,7 @@ def evaluate(trainer, val_dataloader):
     }
 
 
-def main():
+def main(lr=0.001):
     # if args.cfg is not None:
     #     cfg.merge_from_file(args.cfg)
 
@@ -192,16 +193,16 @@ def main():
     val_dataset = TrainDataset(data_root=DATASET_DATA_ROOT, data_type='val')
     val_dataloader = DataLoader(val_dataset, batch_size=VAL_BATCH_SIZE, shuffle=False, num_workers=4)
 
-    trainer = VAETrainer()
+    trainer = VAETrainer(lr)
 
     if TRAIN_RESUME:
         TRAIN_START_EPOCH = trainer.resume_model(TRAIN_RESUME_PATH)
     train(trainer, train_dataloader, val_dataloader, file_writer)
 
 
-
 if __name__ == '__main__':
-    main()
+    learning_rate = np.float(sys.argv[1])
+    main(lr=learning_rate)
 
 
 
